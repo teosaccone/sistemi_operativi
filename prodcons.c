@@ -139,7 +139,7 @@ int inizio_produzione_tipo_1(MonitorPC * p){
     int i=0;
 
     if(p->num_liberi==0)
-        wait_condition(&(p->m), CV_PROD1);
+        wait_condition(&(p->m), CV_PROD);
 
     while(p->stato[i] != LIBERO && i < DIM)
         i++;
@@ -169,7 +169,7 @@ int inizio_produzione_tipo_2(MonitorPC * p){
     int i=0;
 
     if(p->num_liberi==0)
-        wait_condition(&(p->m), CV_PROD2);
+        wait_condition(&(p->m), CV_PROD);
 
     while(p->stato[i] != LIBERO && i < DIM)
         i++;
@@ -218,7 +218,7 @@ void fine_consumazione_tipo_1(MonitorPC * p, int i){
 
     p->stato[i]=LIBERO;
     p->num_liberi++;
-    signal_condition(&(p->m),CV_PROD1);
+    signal_condition(&(p->m),CV_PROD);
 
     leave_monitor(&(p->m));
 }
@@ -249,7 +249,7 @@ void fine_consumazione_tipo_2(MonitorPC * p, int i){ // Le funzioni sono ridonda
 
     p->stato[i]=LIBERO;
     p->num_liberi++;
-    signal_condition(&(p->m),CV_PROD2);
+    signal_condition(&(p->m),CV_PROD);
 
     leave_monitor(&(p->m));
 }

@@ -11,8 +11,7 @@
 #define OCCUPATO2 3
 
 /* Definisco delle MACRO per identificare le variabili condition */
-#define CV_PROD1 0
-#define CV_PROD2 1
+#define CV_PROD 1
 #define CV_CONS1 2
 #define CV_CONS2 3
 #define NUMVARCOND 3
