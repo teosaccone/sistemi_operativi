@@ -10,10 +10,12 @@
 #define OCCUPATO1 2
 #define OCCUPATO2 3
 
-#define CV_PROD1 0 
+/* Definisco delle MACRO per identificare le variabili condition */
+#define CV_PROD1 0
 #define CV_PROD2 1
 #define CV_CONS1 2
 #define CV_CONS2 3
+#define NUMVARCOND 3
 
 typedef struct{
 
@@ -25,8 +27,8 @@ typedef struct{
 	int num_occupati_tipo1;
 	int num_occupati_tipo2;
 
-	Monitor m;
 	/* TBD: aggiungere ulteriori variabili per la sincronizzazione */
+	Monitor m; /* Necessito di un monitor per la sincronizzazione */
 
 } MonitorPC;
 
@@ -36,6 +38,18 @@ void produci_tipo_1(MonitorPC * p, int valore);
 void produci_tipo_2(MonitorPC * p, int valore);
 int consuma_tipo_1(MonitorPC * p);
 int consuma_tipo_2(MonitorPC * p);
+
+/* Definisco delle funzioni di inizio e fine produzione e inizio e fine consumazione del tipo 1 */
+int inizio_produzione_tipo_1(MonitorPC * p);
+void fine_produzione_tipo_1(MonitorPC * p, int i);
+int inizio_consumazione_tipo_1(MonitorPC * p);
+void fine_consumazione_tipo_1(MonitorPC * p, int i);
+
+/* Definisco delle funzioni di inizio e fine produzione e inizio e fine consumazione del tipo 2 */
+int inizio_produzione_tipo_2(MonitorPC * p);
+void fine_produzione_tipo_2(MonitorPC * p, int i);
+int inizio_consumazione_tipo_2(MonitorPC * p);
+void fine_consumazione_tipo_2(MonitorPC * p, int i);
 
 
 #endif

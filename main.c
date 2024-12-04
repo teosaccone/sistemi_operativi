@@ -7,7 +7,6 @@
 
 #include "prodcons.h"
 
-#define NUMPROCESSI 6
 
 void produttore_1(MonitorPC * p)
 {
@@ -72,13 +71,13 @@ int main(int argc, char *argv[])
 {
 
 	int i;
+	pid_t pid;
 
-	int shm_id = shmget(IPC_PRIVATE, sizeof(MonitorPC), IPC_CREAT | 0664); // Creo memoria condivisa
+	int id_shm = shmget(IPC_PRIVATE, sizeof(MonitorPC), IPC_CREAT | 0664);
 
-	MonitorPC * p = shmat(shm_id, NULL, 0); /* TBD: Allocare lo oggetto monitor in modo condiviso fra i processi */
-	// Faccio attach della memoria condivisa
+	MonitorPC * p = shmat(id_shm, NULL, 0); /* TBD: Allocare lo oggetto monitor in modo condiviso fra i processi */
 
-	inizializza(p); 
+	inizializza(p);
     
 
 	// Creazione di 2 produttori di tipo 1
@@ -88,15 +87,14 @@ int main(int argc, char *argv[])
 		/* TBD: Creare i processi figli, facendogli eseguire
 		        la funzione "produttore_1"
 		 */
-		pid_t pid_prod_1 = fork();
+		pid = fork();
 
-		if(pid_prod_1<0){
-			perror("Errore nella creazione del processo figlio"); // Messaggio di errore
-		} else if (pid_prod_1==0){
-			printf("Figlio PROD_1 n. %d creato con successo. [PID %d]", i, getpid()); // Messaggio di DEBUG per la corretta creazione dei processi figli
-			produttore_1(p); // Mando in ingresso alla funzione produttore_1 il MonitorPC richiesto
-			printf("[%d] Termino processo.", getpid()); // DEBUG terminazione processo con pid 
-			exit(0); // Uccisione dei processi figli
+		if(pid < 0){
+			perror("Errore nella creazione del processo figlio.");
+		} else if(pid == 0){
+			printf("[%d] Generato produttore di tipo 1\n ", getpid());
+			produttore_1(p);
+			exit(0);
 		}
 	}
 
@@ -107,34 +105,34 @@ int main(int argc, char *argv[])
 		/* TBD: Creare i processi figli, facendogli eseguire
 		        la funzione "produttore_2"
 		 */
-		pid_t pid_prod_2 = fork();
+		pid = fork();
 
-		if(pid_prod_2<0){
-			perror("Errore nella creazione del processo figlio");
-		} else if (pid_prod_2==0){
-			printf("Figlio PROD_1 n. %d creato con successo. [PID %d]", i, getpid()); // Messaggio di DEBUG per la corretta creazione dei processi figli
+		if(pid < 0){
+			perror("Errore nella creazione del processo figlio.");
+		} else if(pid == 0){
+			printf("[%d] Generato produttore di tipo 2\n", getpid());
 			produttore_2(p);
-			printf("[%d] Termino processo.", getpid()); // DEBUG terminazione processo con pid
-			exit(0); // Uccisione dei processi figli
+			exit(0);
 		}
 	}
 
 
 
 	// Creazione di 1 consumatore di tipo 1
-	pid_t pid_cons_1 = fork();
 
-	if(pid_cons_1<0){
-		perror("Errore nella creazione del processo figlio.");
-	} else if(pid_cons_1==0){
-		printf("Figlio CONS_1 n. 1 creato con successo. [%d]", getpid());
-		consumatore_1(p);
-		printf("[%d] Termino processo. ", getpid());
-		exit(0); 
-	}
 	/* TBD: Creare i processi figli, facendogli eseguire
 			la funzione "consumatore_1"
 	 */
+
+	pid = fork();
+
+	if(pid < 0){
+			perror("Errore nella creazione del processo figlio.");
+	} else if(pid == 0){
+			printf("[%d] Generato consumatore di tipo 1\n", getpid());
+			consumatore_1(p);
+			exit(0);
+	}
 
 
 
@@ -143,29 +141,26 @@ int main(int argc, char *argv[])
 	/* TBD: Creare i processi figli, facendogli eseguire
 			la funzione "consumatore_2"
 	 */
-	pid_t pid_cons_2 = fork();
 
-	if(pid_cons_2<0){
-		perror("Errore nella creazione del processo figlio.");
-	} else if(pid_cons_2==0){
-		printf("Figlio CONS_1 n. 1 creato con successo. [%d]", getpid());
-		consumatore_2(p);
-		printf("[%d] Termino processo. ", getpid());
-		exit(0); 
+	pid = fork();
+
+	if(pid < 0){
+			perror("Errore nella creazione del processo figlio.");
+	} else if(pid == 0){
+			printf("[%d] Generato consumatore di tipo 2\n", getpid());
+			consumatore_2(p);
+			exit(0);
 	}
-
 
 
 	/* TBD: Attendere la terminazione di tutti i processi figli */
-	for(int i=0; i<NUMPROCESSI; i++){
-		printf("[%d] Attendo terminazione processi figli.", getpid());
+	
+	for(i=0; i<6; i++)
 		wait(NULL);
-	}
 
 	rimuovi(p);
 
 	/* TBD: De-allocare lo oggetto monitor condiviso */
-	rimuovi(p); // De-alloco il monitor condiviso
-	shmctl(shm_id, IPC_RMID, 0); // De-alloco la memoria condivisa
+	shmctl(id_shm, IPC_RMID, 0);
 }
 
