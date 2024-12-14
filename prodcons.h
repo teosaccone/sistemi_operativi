@@ -1,54 +1,33 @@
-#ifndef __PROCEDURE_H
-#define __PROCEDURE_H
+#ifndef _PRODCONS_H_
+#define _PRODCONS_H_
 
-#include "monitor_hoare.h"
+#include <pthread.h>
 
 #define DIM 4
 
-#define LIBERO 0
-#define INUSO 1
-#define OCCUPATO1 2
-#define OCCUPATO2 3
+typedef struct { // Done
 
-/* Definisco delle MACRO per identificare le variabili condition */
-#define CV_PROD 1
-#define CV_CONS1 2
-#define CV_CONS2 3
-#define NUMVARCOND 3
+    int buffer[DIM];
 
-typedef struct{
+    int testa;
+    int coda;
+    int contatore;
 
-	int vettore[DIM];
+    int uscita_timer;
 
-	int stato[DIM];
+    pthread_mutex_t mutex;
 
-	int num_liberi;
-	int num_occupati_tipo1;
-	int num_occupati_tipo2;
+    pthread_cond_t cv_cons;
+    pthread_cond_t cv_prod;
 
-	/* TBD: aggiungere ulteriori variabili per la sincronizzazione */
-	Monitor m; /* Necessito di un monitor per la sincronizzazione */
+    pthread_t timer;
 
-} MonitorPC;
 
-void inizializza(MonitorPC * p);
-void rimuovi(MonitorPC * p);
-void produci_tipo_1(MonitorPC * p, int valore);
-void produci_tipo_2(MonitorPC * p, int valore);
-int consuma_tipo_1(MonitorPC * p);
-int consuma_tipo_2(MonitorPC * p);
+} MonitorProdCons;
 
-/* Definisco delle funzioni di inizio e fine produzione e inizio e fine consumazione del tipo 1 */
-int inizio_produzione_tipo_1(MonitorPC * p);
-void fine_produzione_tipo_1(MonitorPC * p, int i);
-int inizio_consumazione_tipo_1(MonitorPC * p);
-void fine_consumazione_tipo_1(MonitorPC * p, int i);
-
-/* Definisco delle funzioni di inizio e fine produzione e inizio e fine consumazione del tipo 2 */
-int inizio_produzione_tipo_2(MonitorPC * p);
-void fine_produzione_tipo_2(MonitorPC * p, int i);
-int inizio_consumazione_tipo_2(MonitorPC * p);
-void fine_consumazione_tipo_2(MonitorPC * p, int i);
-
+void inizializza_monitor(MonitorProdCons * m);
+void distruggi_monitor(MonitorProdCons * m);
+int produci(MonitorProdCons * m, int val);
+int consuma(MonitorProdCons * m, int * val);
 
 #endif

@@ -1,255 +1,140 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/time.h>
-#include <sys/types.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include "prodcons.h"
 
-void inizializza(MonitorPC * p) {
+/* Dichiarazione di metodo privato, che sarà
+ * eseguito da un thread "timer" */
+static void * thread_timer(void *);
 
-    printf("Inizializzazione monitor\n");
 
-    /* TBD: Inizializzare il monitor */
-    init_monitor(&(p->m), NUMVARCOND);
-    p->num_liberi=0;
-    p->num_occupati_tipo1=0;
-    p->num_occupati_tipo2=0;
+void inizializza_monitor(MonitorProdCons * m) { // Done
+
+    printf("[MONITOR] Inizializzazione monitor\n");
+
+    m->testa=0;
+    m->coda=0;
+    m->contatore=0;
+
+    m->uscita_timer=0;
+
+    pthread_mutex_init(&(m->mutex), NULL);
+
+    pthread_cond_init(&(m->cv_prod), NULL);
+    pthread_cond_init(&(m->cv_cons), NULL);
+
+    pthread_create(&(m->timer), NULL, thread_timer, (void *) m); // Dopo devo fare il casting del monitor
+}
+
+void distruggi_monitor(MonitorProdCons * m) { // Done
+
+    printf("[MONITOR] Distruzione monitor\n");
+
+    pthread_mutex_destroy(&(m->mutex));
+
+    pthread_cond_destroy(&(m->cv_cons));
+    pthread_cond_destroy(&(m->cv_prod));
+
+    m->uscita_timer=1;
+}
+
+int produci(MonitorProdCons * m, int val) {
+
+
+    // PRIMA DELL'ATTESA, SALVA L'ORARIO
+    struct timeval t1;
+    gettimeofday(&t1,NULL);
+    long start_time = t1.tv_sec*1000000 + t1.tv_usec;
     
-    for(int i=0; i<DIM; i++)
-        p->stato[i]=LIBERO;
-}
 
+    while(m->contatore == DIM)
+        pthread_cond_wait(&(m->cv_prod), &(m->mutex));
 
-void rimuovi(MonitorPC * p) {
-
-    printf("Rimozione monitor\n");
-
-    /* TBD: Disattivare il monitor */
-    remove_monitor(&(p->m));
-
-}
-
-
-void produci_tipo_1(MonitorPC * p, int valore) {
-
-    int index = inizio_produzione_tipo_1(p);
-
-    /* TBD: Aggiungere la sincronizzazione,
-            in base allo schema con vettore di stato
-     */
-
-
-    printf("Produzione di tipo 1 in corso...\n");
-
-    sleep(1);
-    p->vettore[index] = valore;
-
-    fine_produzione_tipo_1(p, index);
-
-    printf("Produzione di tipo 1 completata (valore=%d, index=%d)\n", valore, index);
-
-}
-
-
-void produci_tipo_2(MonitorPC * p, int valore) {
-
-    int index = inizio_produzione_tipo_2(p);
-
-    /* TBD: Aggiungere la sincronizzazione,
-            in base allo schema con vettore di stato
-     */
-
-
-    printf("Produzione di tipo 2 in corso...\n");
-
-    sleep(1);
-    p->vettore[index] = valore;
-
-    fine_produzione_tipo_2(p, index);
-
-    printf("Produzione di tipo 2 completata (valore=%d, index=%d)\n", valore, index);
-
-}
-
-
-int consuma_tipo_1(MonitorPC * p) {
-
-    int index = inizio_consumazione_tipo_1(p);
-
-    int valore = 0;
-
-    /* TBD: Aggiungere la sincronizzazione,
-            in base allo schema con vettore di stato
-     */
-
-
-    printf("Consumazione di tipo 1 in corso...\n");
-
-    sleep(1);
-    valore = p->vettore[index];
-
-    fine_consumazione_tipo_1(p, index);
-
-    printf("Consumazione di tipo 1 completata (valore=%d, index=%d)\n", valore, index);
-
-
-    /* NOTA: Dopo la consumazione, occorre risvegliare un produttore di tipo 1
-             oppure un produttore di tipo 2. È indifferente dare la priorità ai
-             produttori di tipo 1 oppure di tipo 2.
-     */
-
-    return valore;
-}
-
-
-int consuma_tipo_2(MonitorPC * p) {
-
-    int index = inizio_consumazione_tipo_2(p);
-
-    int valore = 0;
-
-    /* TBD: Aggiungere la sincronizzazione,
-            in base allo schema con vettore di stato
-     */
-
-
-    printf("Consumazione di tipo 2 in corso...\n");
-
-    sleep(1);
-    valore = p->vettore[index];
-
-    fine_consumazione_tipo_1(p, index);
-
-    printf("Consumazione di tipo 2 completata (valore=%d, index=%d)\n", valore, index);
-
-
-    /* NOTA: Dopo la consumazione, occorre risvegliare un produttore di tipo 1
-             oppure un produttore di tipo 2. È indifferente dare la priorità ai
-             produttori di tipo 1 oppure di tipo 2.
-     */
-
-    return valore;
-}
-
-int inizio_produzione_tipo_1(MonitorPC * p){
+    // DOPO L'ATTESA, SALVA DI NUOVO L'ORARIO, E CONTROLLA SE SONO PASSATI 3 SECONDI
+    struct timeval t2;
+    gettimeofday(&t2,NULL);
+    long current_time = t2.tv_sec*1000000 + t2.tv_usec;
     
-    enter_monitor(&(p->m));
+    if(current_time - start_time >= 3000000) {
 
-    int i=0;
+        printf("[MONITOR] Produttore ha atteso oltre 3 secondi, esce\n");
 
-    if(p->num_liberi==0)
-        wait_condition(&(p->m), CV_PROD);
+        return -1;
+    }
 
-    while(p->stato[i] != LIBERO && i < DIM)
-        i++;
 
-    p->stato[i]=INUSO;
-    p->num_liberi--;
 
-    leave_monitor(&(p->m));
+    m->buffer[m->testa] = val;
+    m->testa=(m->testa + 1) % DIM;
+    m->contatore++;
 
-    return i;
+    printf("[MONITOR] Produzione %d\n", val);
+
+    pthread_cond_signal(&(m->cv_cons));
+
+    return 0;
 }
 
-void fine_produzione_tipo_1(MonitorPC * p, int i){
-    enter_monitor(&(p->m));
+int consuma(MonitorProdCons * m, int * val) {
 
-    p->stato[i]=OCCUPATO1;
-    p->num_occupati_tipo1++;
-    signal_condition(&(p->m), CV_CONS1);
+    /* TBD: Introdurre la sincronizzazione */
 
-    leave_monitor(&(p->m));
+    struct timeval t1;
+	gettimeofday(&t1,NULL);
+    long start_time = t1.tv_sec*1000000 + t1.tv_usec;
+
+    while(m->contatore==0)
+        pthread_cond_wait(&(m->cv_cons), &(m->mutex));
+
+    struct timeval t2;
+	gettimeofday(&t2,NULL);
+    long current_time = t2.tv_sec*1000000 + t2.tv_usec;
+
+    if(current_time - start_time >= 3000000) {
+
+        printf("[MONITOR] Consumatore ha atteso oltre 3 secondi, esce\n");
+
+        return -1;
+    }
+
+
+
+    *val = m->buffer[m->coda]; // Unici dubbi sull'utilizzo di questo puntatore
+    m->coda=(m->coda + 1) % DIM;
+    m->contatore--;
+
+    printf("[MONITOR] Consumazione %d\n", *val);
+
+    pthread_cond_signal(&(m->cv_prod));
+
+    return 0;
 }
 
-int inizio_produzione_tipo_2(MonitorPC * p){
-    
-    enter_monitor(&(p->m));
+void * thread_timer(void * p) {
 
-    int i=0;
+    MonitorProdCons * m = (MonitorProdCons *) p;
 
-    if(p->num_liberi==0)
-        wait_condition(&(p->m), CV_PROD);
+    printf("[MONITOR] Avvio thread timer\n");
 
-    while(p->stato[i] != LIBERO && i < DIM)
-        i++;
 
-    p->stato[i]=INUSO;
-    p->num_liberi--;
+    while(1) {
 
-    leave_monitor(&(p->m));
+        int uscita = 0;
 
-    return i;
-}
+        sleep(1);
 
-void fine_produzione_tipo_2(MonitorPC * p, int i){
-    enter_monitor(&(p->m));
+        /* Il thread timer periodicamente attiva tutti i thread sospesi */
+        pthread_cond_broadcast(&(m->cv_prod));
+        pthread_cond_broadcast(&(m->cv_cons));
 
-    p->stato[i]=OCCUPATO1;
-    p->num_occupati_tipo2++;
-    signal_condition(&(p->m), CV_CONS2);
+        if(uscita != 0) {
+            break;
+        }
+    }
 
-    leave_monitor(&(p->m));
-}
+    printf("[MONITOR] Uscita thread timer\n");
 
-int inizio_consumazione_tipo_1(MonitorPC * p){
-
-    enter_monitor(&(p->m));
-
-    int i=0;
-
-    if(p->num_occupati_tipo1 == 0)
-        wait_condition(&(p->m), CV_CONS1);
-
-    while(p->stato[i] != OCCUPATO1 && i < DIM)
-        i++;
-
-    p->stato[i]=INUSO;
-    p->num_occupati_tipo1--;
-
-    leave_monitor(&(p->m));
-
-    return i;
-}
-
-void fine_consumazione_tipo_1(MonitorPC * p, int i){
-
-    enter_monitor(&(p->m));
-
-    p->stato[i]=LIBERO;
-    p->num_liberi++;
-    signal_condition(&(p->m),CV_PROD);
-
-    leave_monitor(&(p->m));
-}
-
-int inizio_consumazione_tipo_2(MonitorPC * p){
-
-    enter_monitor(&(p->m));
-
-    int i=0;
-
-    if(p->num_occupati_tipo2 == 0)
-        wait_condition(&(p->m), CV_CONS2);
-
-    while(p->stato[i] != OCCUPATO2 && i < DIM)
-        i++;
-
-    p->stato[i]=INUSO;
-    p->num_occupati_tipo2--;
-
-    leave_monitor(&(p->m));
-
-    return i;
-}
-
-void fine_consumazione_tipo_2(MonitorPC * p, int i){ // Le funzioni sono ridondanti ma le lascio così per leggibilità
-
-    enter_monitor(&(p->m));
-
-    p->stato[i]=LIBERO;
-    p->num_liberi++;
-    signal_condition(&(p->m),CV_PROD);
-
-    leave_monitor(&(p->m));
+    pthread_exit(NULL);
 }
